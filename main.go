@@ -2,14 +2,18 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/PaulBernier/chockagent/agent"
 )
 
 func main() {
+	rand.Seed(time.Now().UTC().UnixNano())
+
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 

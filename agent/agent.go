@@ -3,7 +3,10 @@ package agent
 import (
 	"encoding/json"
 
+	"github.com/PaulBernier/chockagent/factomd"
+	"github.com/PaulBernier/chockagent/loadgen"
 	_log "github.com/PaulBernier/chockagent/log"
+	"github.com/mitchellh/mapstructure"
 
 	"github.com/PaulBernier/chockagent/websocket"
 )
@@ -13,8 +16,9 @@ var (
 )
 
 type Agent struct {
-	Name  string
-	wscli *websocket.Client
+	Name          string
+	wscli         *websocket.Client
+	loadGenerator *loadgen.LoadGenerator
 }
 
 func NewAgent(name string) *Agent {
@@ -31,6 +35,15 @@ func NewAgent(name string) *Agent {
 
 func (a *Agent) Start(stop <-chan struct{}) <-chan struct{} {
 	done := make(chan struct{})
+
+	// Verify that the agent was not deployed along a mainnet node
+	mainnet, err := factomd.IsMainnet()
+	if err != nil {
+		log.WithError(err).Fatal("Failed to reach factomd node")
+	}
+	if mainnet {
+		log.Fatal("Chockagent cannot run against a Factom mainnet node")
+	}
 
 	go func() {
 		defer close(done)
@@ -52,13 +65,13 @@ func (a *Agent) run(stop <-chan struct{}) {
 			}
 			a.handleMessage(received)
 		case _, ok := <-a.wscli.Disconnected:
+			// If lose connection to the master, stop any ongoing load to avoid stale state
+			a.stopLoad()
 			if !ok {
 				return
 			}
-
-			// TODO: If lose connection to the master, stop the load
 		case <-stop:
-			// TODO: stop load gracefully
+			a.stopLoad()
 
 			// Stop WS server
 			close(stopWsCli)
@@ -73,6 +86,13 @@ type Command struct {
 	Params  map[string]interface{} `json:"params"`
 }
 
+type StartLoadCommand struct {
+	Type      string                 `mapstructure:"type"`
+	ChainIDs  []string               `mapstructure:"chainIds"`
+	EsAddress string                 `mapstructure:"esAddress"`
+	Params    map[string]interface{} `mapstructure:"params"`
+}
+
 func (a *Agent) handleMessage(received []byte) {
 	cmd := Command{}
 	err := json.Unmarshal(received, &cmd)
@@ -84,10 +104,39 @@ func (a *Agent) handleMessage(received []byte) {
 	log.Infof("Command received: [%s]", cmd.Command)
 	switch cmd.Command {
 	case "start-load":
-		// TODO
+		var slc StartLoadCommand
+		mapstructure.Decode(cmd.Params, &slc)
+		a.startLoad(slc)
 	case "stop-load":
-		// TODO
+		a.stopLoad()
 	default:
 		log.Warnf("Unexpected command [%s]!\n", cmd.Command)
+	}
+}
+
+func (a *Agent) startLoad(slc StartLoadCommand) {
+	// Stop any stale load that could be still running
+	a.stopLoad()
+
+	loadGenerator := loadgen.NewLoadGenerator()
+	err := loadGenerator.Run(loadgen.LoadConfig{
+		Type:         slc.Type,
+		ChainIDsStr:  slc.ChainIDs,
+		EsAddressStr: slc.EsAddress,
+		Params:       slc.Params,
+	})
+
+	if err != nil {
+		log.WithError(err).Error("Failed to start load generator")
+		// TODO: notify master of failure?
+	} else {
+		a.loadGenerator = loadGenerator
+	}
+}
+
+func (a *Agent) stopLoad() {
+	if a.loadGenerator != nil {
+		a.loadGenerator.Stop()
+		a.loadGenerator = nil
 	}
 }
