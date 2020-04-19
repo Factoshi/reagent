@@ -131,7 +131,9 @@ func (cli *Client) Start(agentName string, stop <-chan struct{}) <-chan struct{}
 }
 
 func (cli *Client) connect(agentName string, stop <-chan struct{}) (conn *websocket.Conn) {
-	log.Infof("Connecting to [%s] as [%s]...", cli.Endpoint, agentName)
+	log.WithField("endpoint", cli.Endpoint).
+		WithField("agent-name", agentName).
+		Infof("Connecting to Chockablock...")
 
 	header := http.Header{
 		"agent_name": []string{agentName},

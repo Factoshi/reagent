@@ -3,6 +3,7 @@ package loadgen
 import (
 	"fmt"
 
+	"github.com/PaulBernier/chockagent/common"
 	_log "github.com/PaulBernier/chockagent/log"
 
 	"github.com/Factom-Asset-Tokens/factom"
@@ -18,10 +19,11 @@ type LoadGenerator struct {
 }
 
 type LoadConfig struct {
-	Type         string
-	ChainIDsStr  []string
-	EsAddressStr string
-	Params       map[string]interface{}
+	Type           string
+	ChainIDsStr    []string
+	EsAddressStr   string
+	EntrySizeRange common.IntRange
+	Params         map[string]interface{}
 }
 
 func NewLoadGenerator() *LoadGenerator {
@@ -36,10 +38,15 @@ func (lg *LoadGenerator) Run(config LoadConfig) error {
 		return err
 	}
 
-	composer, err := NewRandomEntryComposer(config.ChainIDsStr, esAddress)
+	composer, err := NewRandomEntryComposer(config.ChainIDsStr, esAddress, config.EntrySizeRange)
 	if err != nil {
 		return err
 	}
+
+	log.WithField("load-type", config.Type).
+		WithField("entrySizeRange", config.EntrySizeRange).
+		WithField("nbChains", len(config.ChainIDsStr)).
+		Info("General load config parsed")
 
 	switch config.Type {
 	case "constant":

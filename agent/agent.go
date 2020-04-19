@@ -3,6 +3,7 @@ package agent
 import (
 	"encoding/json"
 
+	"github.com/PaulBernier/chockagent/common"
 	"github.com/PaulBernier/chockagent/factomd"
 	"github.com/PaulBernier/chockagent/loadgen"
 	_log "github.com/PaulBernier/chockagent/log"
@@ -87,10 +88,11 @@ type Command struct {
 }
 
 type StartLoadCommand struct {
-	Type      string                 `mapstructure:"type"`
-	ChainIDs  []string               `mapstructure:"chainIds"`
-	EsAddress string                 `mapstructure:"esAddress"`
-	Params    map[string]interface{} `mapstructure:"params"`
+	Type           string                 `mapstructure:"type"`
+	ChainIDs       []string               `mapstructure:"chainIds"`
+	EsAddress      string                 `mapstructure:"esAddress"`
+	EntrySizeRange common.IntRange        `mapstructure:"entrySizeRange"`
+	Params         map[string]interface{} `mapstructure:"params"`
 }
 
 func (a *Agent) handleMessage(received []byte) {
@@ -101,7 +103,7 @@ func (a *Agent) handleMessage(received []byte) {
 		return
 	}
 
-	log.Infof("Command received: [%s]", cmd.Command)
+	log.WithField("cmd", cmd.Command).Infof("Command received")
 	switch cmd.Command {
 	case "start-load":
 		var slc StartLoadCommand
@@ -120,10 +122,11 @@ func (a *Agent) startLoad(slc StartLoadCommand) {
 
 	loadGenerator := loadgen.NewLoadGenerator()
 	err := loadGenerator.Run(loadgen.LoadConfig{
-		Type:         slc.Type,
-		ChainIDsStr:  slc.ChainIDs,
-		EsAddressStr: slc.EsAddress,
-		Params:       slc.Params,
+		Type:           slc.Type,
+		ChainIDsStr:    slc.ChainIDs,
+		EsAddressStr:   slc.EsAddress,
+		EntrySizeRange: slc.EntrySizeRange,
+		Params:         slc.Params,
 	})
 
 	if err != nil {

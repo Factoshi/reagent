@@ -10,6 +10,8 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/PaulBernier/chockagent/common"
+
 	"github.com/Factom-Asset-Tokens/factom"
 )
 
@@ -26,13 +28,15 @@ const (
 )
 
 type RandomEntryComposer struct {
-	i          int
-	chainIDs   [][]byte
-	privateKey ed25519.PrivateKey
-	publicKey  ed25519.PublicKey
+	chainIDs           [][]byte
+	privateKey         ed25519.PrivateKey
+	publicKey          ed25519.PublicKey
+	entrySizeGenerator func() int
 }
 
-func NewRandomEntryComposer(chainIDsStr []string, esAddress factom.EsAddress) (*RandomEntryComposer, error) {
+func NewRandomEntryComposer(chainIDsStr []string,
+	esAddress factom.EsAddress,
+	entrySizeRange common.IntRange) (*RandomEntryComposer, error) {
 	comp := new(RandomEntryComposer)
 
 	chainIDs := make([][]byte, len(chainIDsStr))
@@ -49,20 +53,29 @@ func NewRandomEntryComposer(chainIDsStr []string, esAddress factom.EsAddress) (*
 	comp.privateKey = esAddress.PrivateKey()
 	comp.publicKey = esAddress.PublicKey()
 
+	if entrySizeRange.Min < 32 || entrySizeRange.Min > entrySizeRange.Max {
+		return nil, fmt.Errorf("Invalid entry size range: [%+v]", entrySizeRange)
+	}
+
+	if entrySizeRange.Min == entrySizeRange.Max {
+		comp.entrySizeGenerator = func() int { return entrySizeRange.Min }
+	} else {
+		comp.entrySizeGenerator = func() int {
+			return entrySizeRange.Min + rand.Intn(entrySizeRange.Max-entrySizeRange.Min)
+		}
+	}
+
 	return comp, nil
 }
 
-func (comp *RandomEntryComposer) Compose(size int) ([]byte, []byte, error) {
-	content := make([]byte, size)
+func (comp *RandomEntryComposer) Compose() ([]byte, []byte, error) {
+	content := make([]byte, comp.entrySizeGenerator())
 	_, err := rand.Read(content)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// Rotate chain id
-	chainID := comp.chainIDs[comp.i]
-	comp.i = (comp.i + 1) % len(comp.chainIDs)
-
+	chainID := comp.chainIDs[rand.Intn(len(comp.chainIDs))]
 	reveal := entryBytes(chainID, content)
 	commit := generateCommit(reveal, comp.publicKey, comp.privateKey)
 
