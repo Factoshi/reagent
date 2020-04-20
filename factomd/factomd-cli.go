@@ -3,10 +3,15 @@ package factomd
 import (
 	"encoding/hex"
 
+	_log "github.com/PaulBernier/chockagent/log"
+
 	"github.com/AdamSLevy/jsonrpc2/v14"
 )
 
-var c jsonrpc2.Client
+var (
+	c   jsonrpc2.Client
+	log = _log.GetLog()
+)
 
 const ENDPOINT = "http://localhost:8088/v2"
 
@@ -42,11 +47,16 @@ func CommitAndRevealEntry(commit []byte, reveal []byte) {
 	}{Message: hex.EncodeToString(commit)}, nil)
 
 	if err != nil {
+		log.WithError(err).Error("Failed to commit entry")
 		return
 	}
 
 	// Reveal
-	c.Request(nil, ENDPOINT, "reveal-entry", struct {
+	err = c.Request(nil, ENDPOINT, "reveal-entry", struct {
 		Entry string `json:"entry"`
 	}{Entry: hex.EncodeToString(reveal)}, nil)
+	if err != nil {
+		log.WithError(err).Error("Failed to reveal entry")
+		return
+	}
 }
