@@ -8,12 +8,12 @@ import (
 )
 
 type ConstantLoadConfig struct {
-	EPS int `mapstructure:"eps"`
+	EPS float64 `mapstructure:"eps"`
 }
 
 func (clc ConstantLoadConfig) isValid() error {
-	if clc.EPS < 1 {
-		return fmt.Errorf("Invalid EPS [%d]", clc.EPS)
+	if clc.EPS <= 0 {
+		return fmt.Errorf("Invalid EPS [%f]", clc.EPS)
 	}
 
 	return nil

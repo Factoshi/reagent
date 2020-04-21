@@ -28,7 +28,6 @@ type LoadConfig struct {
 
 func NewLoadGenerator() *LoadGenerator {
 	gen := new(LoadGenerator)
-	gen.stop = make(chan interface{})
 	return gen
 }
 
@@ -50,6 +49,8 @@ func (lg *LoadGenerator) Run(config LoadConfig) error {
 
 	switch config.Type {
 	case "constant":
+		lg.stop = make(chan interface{})
+
 		var clc ConstantLoadConfig
 		mapstructure.Decode(config.Params, &clc)
 		if err := clc.isValid(); err != nil {
@@ -57,6 +58,14 @@ func (lg *LoadGenerator) Run(config LoadConfig) error {
 		}
 
 		go lg.runConstantLoad(clc, composer)
+	case "burst":
+		var blc BurstLoadConfig
+		mapstructure.Decode(config.Params, &blc)
+		if err := blc.isValid(); err != nil {
+			return fmt.Errorf("Invalid BurstLoadConfig: %s", err)
+		}
+
+		go lg.runBurstLoad(blc, composer)
 	default:
 		return fmt.Errorf("Non supported load type: [%s]", config.Type)
 	}
@@ -65,6 +74,10 @@ func (lg *LoadGenerator) Run(config LoadConfig) error {
 }
 
 func (lg *LoadGenerator) Stop() {
-	log.Info("Stopping load...")
-	lg.stop <- true
+	if lg.stop != nil {
+		log.Info("Stopping load...")
+		lg.stop <- true
+	} else {
+		log.Warn("Load already stopped by itself")
+	}
 }
