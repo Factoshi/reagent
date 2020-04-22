@@ -1,10 +1,13 @@
 package loadgen
 
 import (
+	"context"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/PaulBernier/chockagent/factomd"
+	"golang.org/x/sync/semaphore"
 )
 
 type BurstLoadConfig struct {
@@ -23,28 +26,58 @@ func (lg *LoadGenerator) runBurstLoad(config BurstLoadConfig, composer *RandomEn
 	log.WithField("config", fmt.Sprintf("%+v", config)).
 		Info("Burst load started")
 
-	i := 0
+	// Limiting API calls concurrency
+	concurrency := int64(500)
+	sem := semaphore.NewWeighted(concurrency)
+	timeout := 10 * time.Second
 	start := time.Now()
-	for {
-		select {
-		case <-lg.stop:
-			log.Info("Burst load aborted")
+	var errorCount uint64
+
+	for i := 0; i < config.NbEntries; i++ {
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		if err := sem.Acquire(ctx, 1); err != nil {
+			cancel()
+			log.WithError(err).Error("Burst aborted")
 			return
-		default:
-			if i >= config.NbEntries {
-				log.WithField("duration", time.Now().Sub(start)).Info("Burst load finished")
+		}
+		cancel()
+
+		go func() {
+			defer sem.Release(1)
+
+			commit, reveal, err := composer.Compose()
+
+			// This should never happen, it's a hard failure
+			if err != nil {
+				atomic.AddUint64(&errorCount, 1)
+				log.WithError(err).Error("Fatal: failed to compose entry")
 				return
 			}
-			go func() {
-				commit, reveal, err := composer.Compose()
 
-				if err != nil {
-					log.WithError(err).Error("Failed to compose entry")
-				} else {
-					factomd.CommitAndRevealEntry(commit, reveal)
-				}
-			}()
-			i++
-		}
+			err = factomd.CommitAndRevealEntry(commit, reveal)
+			// It is expected that API calls will start failing under heavy load
+			if err != nil {
+				atomic.AddUint64(&errorCount, 1)
+				log.WithError(err).Warn("Failed to submit entry")
+			}
+
+		}()
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	// Wait for the semaphore to be fully released
+	// (to account for the full duration as well as all errors)
+	if err := sem.Acquire(ctx, concurrency); err != nil {
+		cancel()
+		log.WithError(err).Error("Failed to wait for the burst to finish")
+		return
+	}
+	cancel()
+
+	if errorCount > 0 {
+		log.WithField("count", errorCount).Error("Errors occured during burst load")
+	}
+
+	log.WithField("duration", time.Now().Sub(start)).Info("Burst load finished")
+
 }

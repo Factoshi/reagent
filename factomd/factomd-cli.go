@@ -40,23 +40,18 @@ func IsMainnet() (bool, error) {
 	return result.DBlock.Header.NetworkID == 4203931042, nil
 }
 
-func CommitAndRevealEntry(commit []byte, reveal []byte) {
+func CommitAndRevealEntry(commit []byte, reveal []byte) error {
 	// Commit
 	err := c.Request(nil, ENDPOINT, "commit-entry", struct {
 		Message string `json:"message"`
 	}{Message: hex.EncodeToString(commit)}, nil)
 
 	if err != nil {
-		log.WithError(err).Error("Failed to commit entry")
-		return
+		return err
 	}
 
 	// Reveal
-	err = c.Request(nil, ENDPOINT, "reveal-entry", struct {
+	return c.Request(nil, ENDPOINT, "reveal-entry", struct {
 		Entry string `json:"entry"`
 	}{Entry: hex.EncodeToString(reveal)}, nil)
-	if err != nil {
-		log.WithError(err).Error("Failed to reveal entry")
-		return
-	}
 }
