@@ -43,8 +43,8 @@ func (lg *LoadGenerator) Run(config LoadConfig) error {
 	}
 
 	log.WithField("load-type", config.Type).
-		WithField("entrySizeRange", config.EntrySizeRange).
-		WithField("nbChains", len(config.ChainIDsStr)).
+		WithField("entry-size-range", config.EntrySizeRange).
+		WithField("nb-chains", len(config.ChainIDsStr)).
 		Info("General load config parsed")
 
 	switch config.Type {

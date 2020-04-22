@@ -29,6 +29,7 @@ func (lg *LoadGenerator) runConstantLoad(config ConstantLoadConfig, composer *Ra
 	start := time.Now()
 	maxConcurrency := int64(100)
 	var errorCount uint64
+	var submitted uint64
 	var concurrentGoRoutines int64
 	ticker := time.NewTicker(interval)
 
@@ -37,6 +38,7 @@ func (lg *LoadGenerator) runConstantLoad(config ConstantLoadConfig, composer *Ra
 		case <-lg.stop:
 			log.WithField("duration", time.Now().Sub(start)).
 				WithField("errors", errorCount).
+				WithField("error-rate", float64(errorCount)/float64(submitted)).
 				Info("Constant load stopped")
 			return
 		case <-ticker.C:
@@ -45,7 +47,7 @@ func (lg *LoadGenerator) runConstantLoad(config ConstantLoadConfig, composer *Ra
 			if atomic.LoadInt64(&concurrentGoRoutines) > maxConcurrency {
 				log.WithField("duration", time.Now().Sub(start)).
 					WithField("errors", errorCount).
-					WithField("maxConcurrency", maxConcurrency).
+					WithField("max-concurrency", maxConcurrency).
 					Error("Aborting constant load due to too high concurrency")
 				lg.stop = nil
 				return
@@ -54,6 +56,7 @@ func (lg *LoadGenerator) runConstantLoad(config ConstantLoadConfig, composer *Ra
 			go func() {
 				defer atomic.AddInt64(&concurrentGoRoutines, -1)
 				atomic.AddInt64(&concurrentGoRoutines, 1)
+				atomic.AddUint64(&submitted, 1)
 
 				commit, reveal, err := composer.Compose()
 
