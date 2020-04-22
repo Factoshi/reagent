@@ -74,13 +74,9 @@ func (lg *LoadGenerator) runBurstLoad(config BurstLoadConfig, composer *RandomEn
 	}
 	cancel()
 
-	if errorCount > 0 {
-		// TODO: master should probably be made aware that the load could not be fully applied
-		log.WithField("count", errorCount).
-			WithField("error-rate", float64(errorCount)/float64(config.NbEntries)).
-			Error("Errors occured during burst load")
-	}
-
-	log.WithField("duration", time.Now().Sub(start)).Info("Burst load finished")
+	log.WithField("duration", time.Now().Sub(start)).
+		WithField("errors", errorCount).
+		WithField("error-rate", float64(errorCount)/float64(config.NbEntries)).
+		Info("Burst load finished")
 
 }
