@@ -38,7 +38,7 @@ func (lg *LoadGenerator) runConstantLoad(config ConstantLoadConfig, composer *Ra
 		case <-lg.stop:
 			log.WithField("duration", time.Now().Sub(start)).
 				WithField("errors", errorCount).
-				WithField("error-rate", float64(errorCount)/float64(submitted)).
+				WithField("error-rate", fmt.Sprintf("%.2f%%", (100*float64(errorCount)/float64(submitted)))).
 				Info("Constant load stopped")
 			return
 		case <-ticker.C:

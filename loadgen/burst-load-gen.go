@@ -27,7 +27,7 @@ func (lg *LoadGenerator) runBurstLoad(config BurstLoadConfig, composer *RandomEn
 		Info("Burst load started")
 
 	// Limiting API calls concurrency
-	concurrency := int64(500)
+	concurrency := int64(200)
 	sem := semaphore.NewWeighted(concurrency)
 	timeout := 10 * time.Second
 	start := time.Now()
@@ -76,7 +76,7 @@ func (lg *LoadGenerator) runBurstLoad(config BurstLoadConfig, composer *RandomEn
 
 	log.WithField("duration", time.Now().Sub(start)).
 		WithField("errors", errorCount).
-		WithField("error-rate", float64(errorCount)/float64(config.NbEntries)).
+		WithField("error-rate", fmt.Sprintf("%.2f%%", (100*float64(errorCount)/float64(config.NbEntries)))).
 		Info("Burst load finished")
 
 }
