@@ -136,7 +136,7 @@ func (cli *Client) connect(agentName string, stop <-chan struct{}) (conn *websoc
 		Infof("Connecting to Chockablock...")
 
 	header := http.Header{
-		"agent_name": []string{agentName},
+		"agentname": []string{agentName},
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
