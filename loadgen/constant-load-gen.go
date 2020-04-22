@@ -2,6 +2,7 @@ package loadgen
 
 import (
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/PaulBernier/chockagent/factomd"
@@ -25,23 +26,49 @@ func (lg *LoadGenerator) runConstantLoad(config ConstantLoadConfig, composer *Ra
 		WithField("interval", interval).
 		Info("Constant load started")
 
+	start := time.Now()
+	maxConcurrency := int64(100)
+	var errorCount uint64
+	var concurrentGoRoutines int64
 	ticker := time.NewTicker(interval)
 
 	for {
 		select {
 		case <-lg.stop:
-			log.Info("Constant load stopped")
+			log.WithField("duration", time.Now().Sub(start)).
+				WithField("errors", errorCount).
+				Info("Constant load stopped")
 			return
 		case <-ticker.C:
-			// TODO: add a mechanism to detect when the machine is not able to create load fast enough
-			// and goroutines start piling up
+			// Abort if the entries cannot be inserted fast enough and
+			// go routines are starting piling up
+			if atomic.LoadInt64(&concurrentGoRoutines) > maxConcurrency {
+				log.WithField("duration", time.Now().Sub(start)).
+					WithField("errors", errorCount).
+					WithField("maxConcurrency", maxConcurrency).
+					Error("Aborting constant load due to too high concurrency")
+				lg.stop = nil
+				return
+			}
+
 			go func() {
+				defer atomic.AddInt64(&concurrentGoRoutines, -1)
+				atomic.AddInt64(&concurrentGoRoutines, 1)
+
 				commit, reveal, err := composer.Compose()
 
+				// This should never happen, it's a hard failure
 				if err != nil {
-					log.WithError(err).Error("Failed to compose entry")
-				} else {
-					factomd.CommitAndRevealEntry(commit, reveal)
+					atomic.AddUint64(&errorCount, 1)
+					log.WithError(err).Error("Fatal: failed to compose entry")
+					return
+				}
+
+				err = factomd.CommitAndRevealEntry(commit, reveal)
+				// It is expected that API calls will start failing under heavy load
+				if err != nil {
+					atomic.AddUint64(&errorCount, 1)
+					log.WithError(err).Warn("Failed to submit entry")
 				}
 			}()
 		}
