@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/PaulBernier/chockagent/common"
+	"github.com/PaulBernier/chockagent/factomd"
 	_log "github.com/PaulBernier/chockagent/log"
 
 	"github.com/Factom-Asset-Tokens/factom"
@@ -46,6 +47,14 @@ func (lg *LoadGenerator) Run(config LoadConfig) error {
 		WithField("entry-size-range", config.EntrySizeRange).
 		WithField("nb-chains", len(config.ChainIDsStr)).
 		Info("General load config parsed")
+
+	height, minute, err := factomd.CurrentBlockAndMinute()
+	if err != nil {
+		return err
+	}
+	log.WithField("height", height).
+		WithField("minute", minute).
+		Info("Current factomd state")
 
 	switch config.Type {
 	case "constant":

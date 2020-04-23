@@ -23,8 +23,9 @@ type DBlockByHeightResult struct {
 	} `json:"dblock"`
 }
 
-type DBlockByHeightResult2 struct {
-	Result map[string]interface{} `json:"result"`
+type CurrentMinuteResult struct {
+	DBHeight int `json:"directoryblockheight"`
+	Minute   int `json:"minute"`
 }
 
 func IsMainnet() (bool, error) {
@@ -38,6 +39,17 @@ func IsMainnet() (bool, error) {
 	}
 
 	return result.DBlock.Header.NetworkID == 4203931042, nil
+}
+
+func CurrentBlockAndMinute() (int, int, error) {
+	var result CurrentMinuteResult
+	err := c.Request(nil, ENDPOINT, "current-minute", nil, &result)
+
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return result.DBHeight + 1, result.Minute, nil
 }
 
 func CommitAndRevealEntry(commit []byte, reveal []byte) error {
