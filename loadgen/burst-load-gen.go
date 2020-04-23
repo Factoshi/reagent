@@ -74,7 +74,9 @@ func (lg *LoadGenerator) runBurstLoad(config BurstLoadConfig, composer *RandomEn
 	}
 	cancel()
 
-	log.WithField("duration", time.Now().Sub(start)).
+	duration := time.Now().Sub(start)
+	log.WithField("duration", duration).
+		WithField("eps", fmt.Sprintf("%.2f", float64(config.NbEntries)/duration.Seconds())).
 		WithField("errors", errorCount).
 		WithField("error-rate", fmt.Sprintf("%.2f%%", (100*float64(errorCount)/float64(config.NbEntries)))).
 		Info("Burst load finished")
