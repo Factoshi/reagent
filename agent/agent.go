@@ -131,7 +131,6 @@ func (a *Agent) startLoad(slc StartLoadCommand) {
 
 	if err != nil {
 		log.WithError(err).Error("Failed to start load generator")
-		// TODO: notify master of failure?
 	} else {
 		a.loadGenerator = loadGenerator
 	}
