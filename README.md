@@ -1,6 +1,6 @@
 # ChockAgent
 
-## Run the agent
+## Deploy an agent
 
 The agent must be run on a machine with a local instance of factomd running (API port 8088 open).
 
@@ -15,6 +15,14 @@ docker run -d \
 
 # Verify the agent succesfully connected to the coordinator
 docker logs chockagent
+```
+
+## Run an agent locally (for development)
+
+The easiest way is to run:
+
+```bash
+AGENT_NAME="local-chockagent" go run main.go
 ```
 
 ## Build the agent
