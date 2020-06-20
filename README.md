@@ -29,4 +29,4 @@ AGENT_NAME="local-chockagent" go run main.go
 
 Running `make` will build the chockagent. Note that the default chockablock endpoint is set at build time (see Makefile).
 
-`docker_push.sh` is a simple script building a chockagent Docker image and pushing it to Docker hub. That script uses the latest git tag to version the image: before publishing an updated image you will need to tag the release (e.g. `git tag v1.1.1`).
+`docker_push.sh` is a basic script building a chockagent Docker image and pushing it to Docker hub. That script uses the latest git tag to version the image: before publishing an updated image you will need to tag the release (e.g. `git tag v1.1.1`).

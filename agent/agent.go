@@ -2,6 +2,7 @@ package agent
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/PaulBernier/chockagent/common"
 	"github.com/PaulBernier/chockagent/factomd"
@@ -57,9 +58,13 @@ func (a *Agent) Start(stop <-chan struct{}) <-chan struct{} {
 func (a *Agent) run(stop <-chan struct{}) {
 	stopWsCli := make(chan struct{})
 	doneServer := a.wscli.Start(a.Name, stopWsCli)
+	a.sendCurrentHeight()
+	heightUpdateTicker := time.NewTicker(time.Duration(60) * time.Second)
 
 	for {
 		select {
+		case <-heightUpdateTicker.C:
+			a.sendCurrentHeight()
 		case received, ok := <-a.wscli.Receive:
 			if !ok {
 				return
@@ -81,6 +86,36 @@ func (a *Agent) run(stop <-chan struct{}) {
 		}
 	}
 }
+
+/**********
+ * Send
+ **********/
+
+type Message struct {
+	Type      string      `json:"type"`
+	Timestamp int64       `json:"timestamp"`
+	Payload   interface{} `json:"payload"`
+}
+
+func (a *Agent) sendCurrentHeight() {
+	blockheight, _, err := factomd.CurrentBlockAndMinute()
+	if err != nil {
+		log.Warn("Failed to send current height because of height fetching: %s", err)
+		return
+	}
+
+	msg := Message{Type: "blockheight", Timestamp: time.Now().Unix(), Payload: blockheight}
+	bytes, err := json.Marshal(msg)
+	if err != nil {
+		log.Warn("Failed to send current height because of JSON marshalling: %s", err)
+		return
+	}
+	a.wscli.Send <- bytes
+}
+
+/**********
+ * Receive
+ **********/
 
 type Command struct {
 	Command string                 `json:"command"`
