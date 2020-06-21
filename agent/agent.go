@@ -100,14 +100,14 @@ type Message struct {
 func (a *Agent) sendCurrentHeight() {
 	blockheight, _, err := factomd.CurrentBlockAndMinute()
 	if err != nil {
-		log.Warn("Failed to send current height because of height fetching: %s", err)
+		log.Warnf("Failed to send current height because of height fetching: %s", err)
 		return
 	}
 
 	msg := Message{Type: "blockheight", Timestamp: time.Now().Unix(), Payload: blockheight}
 	bytes, err := json.Marshal(msg)
 	if err != nil {
-		log.Warn("Failed to send current height because of JSON marshalling: %s", err)
+		log.Warnf("Failed to send current height because of JSON marshalling: %s", err)
 		return
 	}
 	a.wscli.Send <- bytes
