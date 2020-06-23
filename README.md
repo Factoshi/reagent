@@ -25,6 +25,12 @@ The easiest way is to run:
 AGENT_NAME="local-chockagent" go run main.go
 ```
 
+Available environment variables:
+
+* `AGENT_NAME`: An identifying name for the agent (should be unique)
+* `FACTOMD_RPC_ENDPOINT`: An alternate factomd endpoint. Must include /v2. (default: `http://localhost:8088/v2`)
+* `CHOCKABLOCK_ENDPOINT`: An alternate ChockaBlock endpoint. (default: `ws://localhost:4007`, production: `wss://chockagent.luciap.ca`)
+
 ## Build the agent
 
 Running `make` will build the chockagent. Note that the default chockablock endpoint is set at build time (see Makefile).
